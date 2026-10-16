@@ -5,17 +5,19 @@ import { ServicesSection } from './components/ServicesSection';
 import { BookingWizard } from './components/BookingWizard';
 import { MobileDispatchTracker } from './components/MobileDispatchTracker';
 import { ReviewsSection } from './components/ReviewsSection';
-import { OmegaEdiHub } from './components/OmegaEdiHub';
-import { EmailConfirmationModal } from './components/EmailConfirmationModal';
 import { Footer } from './components/Footer';
-import { InteractiveWindshieldVisualizer } from './components/InteractiveWindshieldVisualizer';
-import { InstantPhotoAnalyzer } from './components/InstantPhotoAnalyzer';
 import { MobileStickyActionBar } from './components/MobileStickyActionBar';
 import { ObjectionFaqSection } from './components/ObjectionFaqSection';
 import { WindshieldCareGuide } from './components/WindshieldCareGuide';
 import { BreadcrumbNav } from './components/BreadcrumbNav';
-import { AdminDashboard } from './components/AdminDashboard';
 import { AdminLogin } from './components/AdminLogin';
+
+// Lazy loaded components for code-splitting and performance optimization
+const AdminDashboard = React.lazy(() => import('./components/AdminDashboard').then(m => ({ default: m.AdminDashboard })));
+const OmegaEdiHub = React.lazy(() => import('./components/OmegaEdiHub').then(m => ({ default: m.OmegaEdiHub })));
+const InteractiveWindshieldVisualizer = React.lazy(() => import('./components/InteractiveWindshieldVisualizer').then(m => ({ default: m.InteractiveWindshieldVisualizer })));
+const InstantPhotoAnalyzer = React.lazy(() => import('./components/InstantPhotoAnalyzer').then(m => ({ default: m.InstantPhotoAnalyzer })));
+const EmailConfirmationModal = React.lazy(() => import('./components/EmailConfirmationModal').then(m => ({ default: m.EmailConfirmationModal })));
 import { 
   BookingAppointment, 
   MobileTechnician, 
@@ -452,18 +454,22 @@ export default function App() {
                 </div>
 
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-start">
-                  <InteractiveWindshieldVisualizer
-                    selectedDamage={initialBookingDamage as DamageType}
-                    onSelectDamage={(dmg, zone) => {
-                      setInitialBookingDamage(dmg);
-                      setRecentNotification(`Windshield coordinate marked in ${zone}. Ready to book!`);
-                    }}
-                  />
-                  <InstantPhotoAnalyzer
-                    onValidated={(msg) => {
-                      setRecentNotification(msg);
-                    }}
-                  />
+                  <React.Suspense fallback={<div className="p-8 text-center text-slate-400 font-medium">Loading Visualizer...</div>}>
+                    <InteractiveWindshieldVisualizer
+                      selectedDamage={initialBookingDamage as DamageType}
+                      onSelectDamage={(dmg, zone) => {
+                        setInitialBookingDamage(dmg);
+                        setRecentNotification(`Windshield coordinate marked in ${zone}. Ready to book!`);
+                      }}
+                    />
+                  </React.Suspense>
+                  <React.Suspense fallback={<div className="p-8 text-center text-slate-400 font-medium">Loading Diagnostic Analyzer...</div>}>
+                    <InstantPhotoAnalyzer
+                      onValidated={(msg) => {
+                        setRecentNotification(msg);
+                      }}
+                    />
+                  </React.Suspense>
                 </div>
               </div>
             </section>
@@ -697,38 +703,42 @@ export default function App() {
         {/* Insurance Claims Clearinghouse API Console Tab (for Shop Management) */}
         {activeTab === 'claims' && (
           <div className="max-w-7xl mx-auto px-4 sm:px-6 py-12">
-            <OmegaEdiHub
-              claims={claims}
-              onTransmitClaim={handleTransmitClaim}
-              bookings={bookings}
-              onSyncBookingToEdi={handleSyncBookingToEdi}
-            />
+            <React.Suspense fallback={<div className="p-12 text-center text-slate-500 font-medium">Loading Insurance EDI Hub...</div>}>
+              <OmegaEdiHub
+                claims={claims}
+                onTransmitClaim={handleTransmitClaim}
+                bookings={bookings}
+                onSyncBookingToEdi={handleSyncBookingToEdi}
+              />
+            </React.Suspense>
           </div>
         )}
 
         {/* Admin Control Center Tab (Backend Control for Site Owner) */}
         {activeTab === 'admin' && (
           isAdminAuthenticated ? (
-            <AdminDashboard
-              bookings={bookings}
-              technicians={technicians}
-              reviews={reviews}
-              claims={claims}
-              siteSettings={siteSettings}
-              onUpdateSiteSettings={handleUpdateSiteSettings}
-              onUpdateBookingStatus={handleUpdateBookingStatus}
-              onDeleteBooking={handleDeleteBooking}
-              onUpdateTechnician={handleUpdateTechnician}
-              onAddTechnician={handleAddTechnician}
-              onNavigateToSite={() => {
-                setActiveTab('home');
-                if (window.location.hash.toLowerCase() === '#admin') {
-                  history.replaceState(null, '', window.location.pathname + window.location.search);
-                }
-                window.scrollTo({ top: 0, behavior: 'smooth' });
-              }}
-              onLogout={handleAdminLogout}
-            />
+            <React.Suspense fallback={<div className="p-12 text-center text-slate-500 font-medium">Loading Control Center...</div>}>
+              <AdminDashboard
+                bookings={bookings}
+                technicians={technicians}
+                reviews={reviews}
+                claims={claims}
+                siteSettings={siteSettings}
+                onUpdateSiteSettings={handleUpdateSiteSettings}
+                onUpdateBookingStatus={handleUpdateBookingStatus}
+                onDeleteBooking={handleDeleteBooking}
+                onUpdateTechnician={handleUpdateTechnician}
+                onAddTechnician={handleAddTechnician}
+                onNavigateToSite={() => {
+                  setActiveTab('home');
+                  if (window.location.hash.toLowerCase() === '#admin') {
+                    history.replaceState(null, '', window.location.pathname + window.location.search);
+                  }
+                  window.scrollTo({ top: 0, behavior: 'smooth' });
+                }}
+                onLogout={handleAdminLogout}
+              />
+            </React.Suspense>
           ) : (
             <AdminLogin
               currentPassword={siteSettings.adminPassword || 'admin123'}
@@ -747,11 +757,13 @@ export default function App() {
 
       {/* Automated Email Confirmation Modal */}
       {emailModalBooking && (
-        <EmailConfirmationModal
-          booking={emailModalBooking}
-          technician={technicians.find((t) => t.id === emailModalBooking.technicianId)}
-          onClose={() => setEmailModalBooking(null)}
-        />
+        <React.Suspense fallback={null}>
+          <EmailConfirmationModal
+            booking={emailModalBooking}
+            technician={technicians.find((t) => t.id === emailModalBooking.technicianId)}
+            onClose={() => setEmailModalBooking(null)}
+          />
+        </React.Suspense>
       )}
 
       {/* Footer */}
